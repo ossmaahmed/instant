@@ -12,7 +12,8 @@ instantPipeline(
     gitRepoUrl      : 'https://github.com/ossmaahmed/instant.git',
     gitBranch       : 'main',
     gitCredentialsId: 'github',      // Jenkins credential ID (username + token)
-    manifestDir     : 'k8s',
+    serviceDir      : 'app',         // service folders are app/gateway, app/web, ...
+    manifestDir     : 'k8s-eks',
     severity        : 'HIGH,CRITICAL',
     ignoreUnfixed   : false          // any HIGH or CRITICAL fails the scan; set true to ignore ones with no fix yet
 )
