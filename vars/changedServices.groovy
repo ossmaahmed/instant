@@ -4,6 +4,7 @@
 // no service folder, so it builds nothing. That is what stops build loops.
 def call(Map cfg) {
     List all = cfg.services
+    String base = cfg.serviceDir ? cfg.serviceDir + '/' : ''
     String prev = (env.GIT_PREVIOUS_SUCCESSFUL_COMMIT ?: '').trim()
     if (!(prev ==~ /^[0-9a-f]{40}$/)) {
         return all
@@ -19,7 +20,7 @@ def call(Map cfg) {
     for (String svc : all) {
         boolean hit = false
         for (String f : files) {
-            if (f.startsWith(svc + '/')) {
+            if (f.startsWith(base + svc + '/')) {
                 hit = true
             }
         }
