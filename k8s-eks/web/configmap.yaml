@@ -1,0 +1,16 @@
+# ALLOWED_HOSTS: .elb.amazonaws.com accepts the load balancer's generated hostname.
+# Replace it with your own domain once you have one.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: web-config
+  namespace: barbershop
+  labels: {app: web}
+data:
+  BOOKING_API_URL: "http://booking-api:8001"
+  IDENTITY_API_URL: "http://identity-api:8002"
+  WEB_DB_PATH: "/data/web.sqlite3"
+  CUSTOMER_CUTOFF_MINUTES: "120"
+  LOCKOUT_MINUTES: "15"
+  SLOT_STEP_MINUTES: "30"
+  ALLOWED_HOSTS: "localhost,127.0.0.1,.elb.amazonaws.com"

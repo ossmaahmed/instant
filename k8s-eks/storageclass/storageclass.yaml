@@ -1,0 +1,15 @@
+# For your EKS cluster (standard, with the aws-ebs-csi-driver add-on from your Terraform apply).
+# Retain: deleting the PVC does NOT delete the EBS volume, so a mistaken
+# `kubectl delete` or namespace delete cannot erase the database. The volume
+# keeps costing money until you delete it yourself.
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: barbershop-db
+provisioner: ebs.csi.aws.com
+parameters:
+  type: gp3
+  encrypted: "true"
+reclaimPolicy: Retain
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true

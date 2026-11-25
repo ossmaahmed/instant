@@ -1,0 +1,28 @@
+---
+- name: Import the Jenkins package signing key
+  ansible.builtin.rpm_key:
+    state: present
+    key: https://pkg.jenkins.io/redhat-stable/jenkins.io-2023.key
+
+- name: Configure the Jenkins package repository
+  ansible.builtin.get_url:
+    url: https://pkg.jenkins.io/redhat-stable/jenkins.repo
+    dest: /etc/yum.repos.d/jenkins.repo
+    mode: "0644"
+
+- name: Install Jenkins
+  ansible.builtin.dnf:
+    name: jenkins
+    state: present
+    update_cache: true
+
+- name: Reset failed state if any
+  ansible.builtin.command: systemctl reset-failed jenkins
+  changed_when: false
+  failed_when: false
+
+- name: Enable and start Jenkins
+  ansible.builtin.systemd:
+    name: jenkins
+    enabled: true
+    state: started

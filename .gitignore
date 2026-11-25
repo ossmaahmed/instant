@@ -1,0 +1,42 @@
+# Secrets and local credentials
+**/.env
+**/.env.*
+!**/.env.example
+**/*secret*.yaml
+**/*secret*.yml
+**/*secret*.json
+**/*Secret*.yaml
+**/*Secret*.yml
+**/*Secret*.json
+*.pem
+*.key
+*.ppk
+**/.vault-pass
+
+# Terraform state and local configuration
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
+crash.*.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Ansible
+*.retry
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Local tooling and operating system files
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

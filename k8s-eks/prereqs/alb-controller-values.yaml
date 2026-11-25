@@ -1,0 +1,15 @@
+# Helm values for the AWS Load Balancer Controller, filled from your Terraform
+# outputs (cluster instant-eks, us-east-1, VPC vpc-0de968e0e6988c419, role
+# instant-eks-alb-controller-role). Install (only if the controller is missing), from inside k8s-eks:
+#   helm repo add eks https://aws.github.io/eks-charts && helm repo update eks
+#   kubectl apply -f https://raw.githubusercontent.com/aws/eks-charts/master/stable/aws-load-balancer-controller/crds/crds.yaml
+#   helm install aws-load-balancer-controller eks/aws-load-balancer-controller -n kube-system -f prereqs/alb-controller-values.yaml
+# The IAM role's trust policy must allow service account kube-system:aws-load-balancer-controller.
+clusterName: instant-eks
+region: us-east-1
+vpcId: vpc-0de968e0e6988c419
+serviceAccount:
+  create: true
+  name: aws-load-balancer-controller
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::908124814208:role/instant-eks-alb-controller-role

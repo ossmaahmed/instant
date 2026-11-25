@@ -1,0 +1,59 @@
+# nginx edge. Stateless, so it can scale. Swap in your own exposure later
+# (Service type LoadBalancer or an Ingress); that choice depends on the cluster.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: gateway
+  namespace: barbershop
+  labels: {app: gateway}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: gateway}
+  template:
+    metadata:
+      labels: {app: gateway}
+    spec:
+      initContainers:
+        # nginx resolves its upstream Service names once, at startup, and exits
+        # if one is missing. Wait for cluster DNS to know all three first, so
+        # a fresh apply never produces a crash-restart loop. Uses the gateway
+        # image itself (alpine, has getent), so no extra image is needed.
+        - name: wait-for-services
+          image: osamaahmed123456/barbershop-gateway:latest
+          command:
+            - sh
+            - -c
+            - |
+              for h in web booking-api identity-api; do
+                until getent hosts "$h" >/dev/null 2>&1; do echo "waiting for $h"; sleep 2; done
+              done
+          resources:
+            requests: {cpu: 10m, memory: 16Mi}
+            limits: {memory: 32Mi}
+      containers:
+        - name: gateway
+          image: osamaahmed123456/barbershop-gateway:latest
+          ports:
+            - containerPort: 8000
+          readinessProbe:
+            httpGet: {path: /healthz, port: 8000}
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: {path: /healthz, port: 8000}
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests: {cpu: 20m, memory: 32Mi}
+            limits: {memory: 128Mi}
+          volumeMounts:
+            # Overrides the compose-oriented config baked into the image.
+            - name: nginx-conf
+              mountPath: /etc/nginx/conf.d/barbershop.conf
+              subPath: barbershop.conf
+              readOnly: true
+      volumes:
+        - name: nginx-conf
+          configMap:
+            name: gateway-nginx

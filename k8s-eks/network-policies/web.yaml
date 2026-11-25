@@ -1,0 +1,17 @@
+# web: only the gateway may call it; it calls booking-api and identity-api. It never touches the database.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: web
+  namespace: barbershop
+spec:
+  podSelector: {matchLabels: {app: web}}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from: [{podSelector: {matchLabels: {app: gateway}}}]
+      ports: [{protocol: TCP, port: 8000}]
+  egress:
+    - to: [{podSelector: {matchLabels: {app: booking-api}}}]
+      ports: [{protocol: TCP, port: 8001}]
+    - to: [{podSelector: {matchLabels: {app: identity-api}}}]
+      ports: [{protocol: TCP, port: 8002}]

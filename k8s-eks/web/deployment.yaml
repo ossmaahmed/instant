@@ -1,0 +1,60 @@
+# NOT multi-replica ready: sessions are in a local SQLite file, so this stays
+# at 1 replica with strategy Recreate (the PVC can attach to one pod only).
+# SECRET_KEY comes from the Secret, so recreating the pod keeps signed
+# sessions valid as long as the PVC (session DB) survives.
+# Probes are TCP, not HTTP: the web service has no /healthz and rejects
+# unknown Host headers (kubelet probes send the pod IP as Host).
+# The image's "app" user is uid/gid 1000: python:3.12-slim has no user >= 1000 and
+# UID_MIN 1000 (checked in the base image layer), and the Dockerfile runs plain
+# `useradd --create-home app`. If you change the base image, recheck.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: barbershop
+  labels: {app: web}
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels: {app: web}
+  template:
+    metadata:
+      labels: {app: web}
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000   # makes the /data volume writable by the app user
+      containers:
+        - name: web
+          image: osamaahmed123456/barbershop-web:latest
+          ports:
+            - containerPort: 8000
+          envFrom:
+            - configMapRef: {name: web-config}
+          env:
+            - name: SECRET_KEY
+              valueFrom: {secretKeyRef: {name: web-secret, key: SECRET_KEY}}
+          readinessProbe:
+            tcpSocket: {port: 8000}
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          livenessProbe:
+            tcpSocket: {port: 8000}
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          resources:
+            requests: {cpu: 50m, memory: 128Mi}
+            limits: {memory: 256Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+          volumeMounts:
+            - {name: data, mountPath: /data}
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: web-data

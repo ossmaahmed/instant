@@ -1,0 +1,9 @@
+# Step 1: nothing may talk to anything (in or out) unless a policy below allows it.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: barbershop
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]

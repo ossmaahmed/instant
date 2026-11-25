@@ -1,0 +1,15 @@
+# Plain settings for booking-api. The DB password is in the Secret, not here.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: booking-api-config
+  namespace: barbershop
+  labels: {app: booking-api}
+data:
+  DB_NAME: "booking"
+  DB_USER: "booking"
+  DB_HOST: "db"
+  IDENTITY_API_URL: "http://identity-api:8002"
+  CUSTOMER_CUTOFF_MINUTES: "120"
+  SLOT_STEP_MINUTES: "30"
+  SEED_DEMO: "true"

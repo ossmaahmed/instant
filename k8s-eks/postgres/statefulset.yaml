@@ -1,0 +1,65 @@
+# One PostgreSQL 16 instance, same as compose. Data lives on one EBS-style
+# volume (ReadWriteOnce): no high availability, no automatic backups.
+# StorageClass barbershop-db uses Retain: deleting the PVC leaves the EBS volume in place (and billed),
+# but the app no longer has the data. Back up before any destroy/recreate.
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres
+  namespace: barbershop
+  labels: {app: postgres}
+spec:
+  serviceName: db
+  replicas: 1
+  selector:
+    matchLabels: {app: postgres}
+  template:
+    metadata:
+      labels: {app: postgres}
+    spec:
+      securityContext:
+        fsGroup: 70   # postgres user in the alpine image; makes the volume writable
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata   # subdir avoids lost+found on fresh volumes
+            - name: POSTGRES_PASSWORD
+              valueFrom: {secretKeyRef: {name: postgres-secret, key: POSTGRES_PASSWORD}}
+            - name: BOOKING_DB_PASSWORD
+              valueFrom: {secretKeyRef: {name: postgres-secret, key: BOOKING_DB_PASSWORD}}
+            - name: IDENTITY_DB_PASSWORD
+              valueFrom: {secretKeyRef: {name: postgres-secret, key: IDENTITY_DB_PASSWORD}}
+          readinessProbe:
+            exec: {command: [sh, -c, "pg_isready -U postgres"]}
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          livenessProbe:
+            exec: {command: [sh, -c, "pg_isready -U postgres"]}
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          resources:
+            requests: {cpu: 100m, memory: 256Mi}
+            limits: {memory: 512Mi}
+          volumeMounts:
+            - {name: data, mountPath: /var/lib/postgresql/data}
+            - {name: init, mountPath: /docker-entrypoint-initdb.d, readOnly: true}
+      volumes:
+        - name: init
+          configMap:
+            name: postgres-init
+            defaultMode: 0555
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        # Class barbershop-db is defined in storageclass/.
+        storageClassName: barbershop-db
+        # Lab placeholder size; volumes can be expanded later.
+        resources:
+          requests:
+            storage: 5Gi

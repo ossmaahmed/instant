@@ -1,0 +1,12 @@
+# Plain settings for identity-api. The DB password is in the Secret, not here.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: identity-api-config
+  namespace: barbershop
+  labels: {app: identity-api}
+data:
+  DB_NAME: "identity"
+  DB_USER: "identity"
+  DB_HOST: "db"
+  LOCKOUT_MINUTES: "15"

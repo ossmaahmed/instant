@@ -1,0 +1,23 @@
+---
+- name: Install Docker
+  ansible.builtin.dnf:
+    name: docker
+    state: present
+    update_cache: true
+
+- name: Enable and start Docker
+  ansible.builtin.systemd:
+    name: docker
+    enabled: true
+    state: started
+
+- name: Add Jenkins to the Docker group
+  ansible.builtin.user:
+    name: jenkins
+    groups: docker
+    append: true
+
+- name: Restart Jenkins to apply Docker group membership
+  ansible.builtin.systemd:
+    name: jenkins
+    state: restarted

@@ -1,0 +1,14 @@
+# Add configuration_values to your existing aws_eks_addon.vpc_cni resource in
+# the Terraform module (module.eks). Without this, NetworkPolicy objects are
+# accepted by Kubernetes but NOT enforced. Terraform owns that add-on, so make
+# the change there instead of with `aws eks update-addon` (which Terraform
+# would later revert).
+#
+#   resource "aws_eks_addon" "vpc_cni" {
+#     ...existing arguments...
+#     configuration_values = jsonencode({
+#       enableNetworkPolicy = "true"
+#     })
+#   }
+#
+# Then `terraform plan` should show a single in-place update on the add-on.

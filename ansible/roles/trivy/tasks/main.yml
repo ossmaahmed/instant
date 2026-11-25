@@ -1,0 +1,15 @@
+---
+- name: Configure the Trivy package repository
+  ansible.builtin.yum_repository:
+    name: trivy
+    description: Trivy repository
+    baseurl: https://aquasecurity.github.io/trivy-repo/rpm/releases/$basearch/
+    gpgcheck: true
+    gpgkey: https://aquasecurity.github.io/trivy-repo/rpm/public.key
+    enabled: true
+
+- name: Install Trivy
+  ansible.builtin.dnf:
+    name: trivy
+    state: present
+    update_cache: true

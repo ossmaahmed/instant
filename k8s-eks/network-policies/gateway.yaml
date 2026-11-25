@@ -1,0 +1,28 @@
+# gateway: reachable on port 8000 only from the two PUBLIC subnets of your VPC
+# (instant-public-1 10.0.1.0/24, instant-public-2 10.0.2.0/24, from your Terraform
+# output). With ALB target-type ip the load balancer sends traffic from addresses in
+# those subnets. This limits the source by network range, not by identity: any
+# other resource placed in those subnets could also reach the gateway.
+# If you change the subnets, change these two blocks. kubectl port-forward is not
+# affected by network policy. Talks to web and both APIs.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: gateway
+  namespace: barbershop
+spec:
+  podSelector: {matchLabels: {app: gateway}}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - ipBlock: {cidr: 10.0.1.0/24}
+        - ipBlock: {cidr: 10.0.2.0/24}
+      ports:
+        - {protocol: TCP, port: 8000}
+  egress:
+    - to: [{podSelector: {matchLabels: {app: web}}}]
+      ports: [{protocol: TCP, port: 8000}]
+    - to: [{podSelector: {matchLabels: {app: booking-api}}}]
+      ports: [{protocol: TCP, port: 8001}]
+    - to: [{podSelector: {matchLabels: {app: identity-api}}}]
+      ports: [{protocol: TCP, port: 8002}]

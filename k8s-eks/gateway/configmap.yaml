@@ -1,0 +1,51 @@
+# nginx routing for the gateway (same routes as docker compose, Kubernetes DNS names).
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: gateway-nginx
+  namespace: barbershop
+  labels: {app: gateway}
+data:
+  barbershop.conf: |
+    # Kubernetes version of gateway/nginx.conf. Differences from compose: no
+    # Docker DNS resolver, and upstreams are plain Service names resolved when
+    # nginx starts (the Services exist before the pods, so this is fine).
+    # Single entry point for the whole system.
+    #   /              -> web (the Arabic UI)
+    #   /api/booking/  -> booking-api (also handy for direct API exploration)
+    #   /api/identity/ -> identity-api
+    # The database is on a separate network and cannot be reached from here.
+    server {
+        listen 8000;
+        server_name _;
+
+
+        location = /healthz {
+            add_header Content-Type text/plain;
+            return 200 'ok';
+        }
+
+        location /api/booking/ {
+            proxy_pass http://booking-api:8001;
+            proxy_set_header Host $http_host; # exact client Host incl. port; $host strips the port and breaks Django CSRF origin checks (403 on every POST)
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        location /api/identity/ {
+            proxy_pass http://identity-api:8002;
+            proxy_set_header Host $http_host; # exact client Host incl. port; $host strips the port and breaks Django CSRF origin checks (403 on every POST)
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        location / {
+            proxy_pass http://web:8000;
+            proxy_set_header Host $http_host; # exact client Host incl. port; $host strips the port and breaks Django CSRF origin checks (403 on every POST)
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+    }

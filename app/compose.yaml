@@ -1,0 +1,100 @@
+# Barbershop booking - microservices version.
+# One command starts everything: docker compose up --build
+#
+# Networks follow who actually talks to whom:
+#   edge: gateway <-> web            (the only path in from your browser)
+#   app:  gateway/web <-> the two APIs, booking-api -> identity-api (token checks)
+#   data: the two APIs <-> PostgreSQL (the gateway and web cannot reach the db)
+# Only the gateway is published to the host, on 127.0.0.1:8000.
+
+services:
+  gateway:
+    build: ./gateway
+    ports:
+      - '127.0.0.1:8000:8000'
+    depends_on:
+      - web
+      - booking-api
+      - identity-api
+    networks:
+      - edge
+      - app
+
+  web:
+    build: ./web
+    environment:
+      BOOKING_API_URL: http://booking-api:8001
+      IDENTITY_API_URL: http://identity-api:8002
+      SECRET_KEY: ${WEB_SECRET_KEY:-}
+      CUSTOMER_CUTOFF_MINUTES: ${CUSTOMER_CUTOFF_MINUTES:-120}
+      LOCKOUT_MINUTES: ${LOCKOUT_MINUTES:-15}
+      SLOT_STEP_MINUTES: ${SLOT_STEP_MINUTES:-30}
+    depends_on:
+      - booking-api
+      - identity-api
+    networks:
+      - edge
+      - app
+
+  booking-api:
+    build: ./booking-api
+    environment:
+      DB_NAME: booking
+      DB_USER: booking
+      DB_PASSWORD: ${BOOKING_DB_PASSWORD:?Set BOOKING_DB_PASSWORD in .env}
+      DB_HOST: db
+      IDENTITY_API_URL: http://identity-api:8002
+      CUSTOMER_CUTOFF_MINUTES: ${CUSTOMER_CUTOFF_MINUTES:-120}
+      SLOT_STEP_MINUTES: ${SLOT_STEP_MINUTES:-30}
+      SEED_DEMO: ${SEED_DEMO:-true}
+    depends_on:
+      db:
+        condition: service_healthy
+      identity-api:
+        condition: service_started
+    networks:
+      - app
+      - data
+
+  identity-api:
+    build: ./identity-api
+    environment:
+      DB_NAME: identity
+      DB_USER: identity
+      DB_PASSWORD: ${IDENTITY_DB_PASSWORD:?Set IDENTITY_DB_PASSWORD in .env}
+      DB_HOST: db
+      LOCKOUT_MINUTES: ${LOCKOUT_MINUTES:-15}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - app
+      - data
+
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      BOOKING_DB_PASSWORD: ${BOOKING_DB_PASSWORD:?Set BOOKING_DB_PASSWORD in .env}
+      IDENTITY_DB_PASSWORD: ${IDENTITY_DB_PASSWORD:?Set IDENTITY_DB_PASSWORD in .env}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: [CMD-SHELL, 'pg_isready -U postgres']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - data
+
+networks:
+  edge:
+  app:
+  data:
+
+volumes:
+  # PostgreSQL data survives restarts. Nothing else needs a volume: the APIs
+  # are stateless and the web service keeps its own sessions in a private
+  # SQLite file inside its container.
+  postgres_data:

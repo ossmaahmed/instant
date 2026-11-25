@@ -1,0 +1,1 @@
+{% extends layout|default:'booking/base.html' %}{% block content %}<section class="narrow panel"><p class="eyebrow">{{ shop.name }}</p><h1 class="page-title">{{ title }}</h1>{% if intro %}<p>{{ intro }}</p>{% endif %}<form method="post">{% csrf_token %}{{ form.as_p }}<button class="button">{{ button }}</button></form></section>{% endblock %}

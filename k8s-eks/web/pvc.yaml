@@ -1,0 +1,13 @@
+# Holds web's private SQLite session file. Without it, every pod recreation
+# ends all owner/customer sessions. ReadWriteOnce means one pod at a time.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: web-data
+  namespace: barbershop
+spec:
+  storageClassName: barbershop-db
+  accessModes: [ReadWriteOnce]
+  resources:
+    requests:
+      storage: 1Gi
