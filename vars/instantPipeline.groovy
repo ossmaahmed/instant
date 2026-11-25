@@ -13,6 +13,7 @@ def call(Map config = [:]) {
         gitRepoUrl      : '',
         gitBranch       : 'main',
         gitCredentialsId: 'github',
+        serviceDir      : '',          // folder that holds the service folders ('' = repo root)
         manifestDir     : 'k8s',
         severity        : 'HIGH,CRITICAL',
         ignoreUnfixed   : false,
