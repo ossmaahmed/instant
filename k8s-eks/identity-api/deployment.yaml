@@ -30,6 +30,7 @@ spec:
           image: 908124814208.dkr.ecr.us-east-1.amazonaws.com/instant-app:identity-api-9-3c36920
           ports:
             - containerPort: 8002
+            - {name: metrics, containerPort: 9102}   # Prometheus only, see network-policies/
           envFrom:
             - configMapRef: {name: identity-api-config}
           env:
