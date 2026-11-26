@@ -1,5 +1,8 @@
 # ALLOWED_HOSTS: .elb.amazonaws.com accepts the load balancer's generated hostname.
 # Replace it with your own domain once you have one.
+# The trycloudflare host below is the current Quick Tunnel URL (temporary:
+# a cloudflared restart mints a new one - follow k8s-eks/cloudflared/README.md
+# "URL changed" to swap it here and restart web).
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -13,4 +16,11 @@ data:
   CUSTOMER_CUTOFF_MINUTES: "120"
   LOCKOUT_MINUTES: "15"
   SLOT_STEP_MINUTES: "30"
-  ALLOWED_HOSTS: "localhost,127.0.0.1,.elb.amazonaws.com"
+  ALLOWED_HOSTS: "localhost,127.0.0.1,.elb.amazonaws.com,alot-organize-startup-outcome.trycloudflare.com"
+  # HTTPS cutover for the Quick Tunnel public URL. TRUST_X_FORWARDED_PROTO is
+  # safe only because nginx trusts X-Forwarded-Proto exclusively on the
+  # tunnel-only listener 8001 (see k8s-eks/gateway/configmap.yaml).
+  CSRF_TRUSTED_ORIGINS: "https://alot-organize-startup-outcome.trycloudflare.com"
+  TRUST_X_FORWARDED_PROTO: "true"
+  SESSION_COOKIE_SECURE: "true"
+  CSRF_COOKIE_SECURE: "true"
