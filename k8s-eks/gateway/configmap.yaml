@@ -1,4 +1,11 @@
-# nginx routing for the gateway (same routes as docker compose, Kubernetes DNS names).
+# nginx routing for the gateway. Two listeners, two trust levels:
+#   8000 = local / future-ALB entry. Reports its own scheme ($scheme), exactly
+#          like the docker compose config. kubectl port-forward uses this one.
+#   8001 = tunnel entry. Only the cloudflared pod may reach it (NetworkPolicy),
+#          so X-Forwarded-Proto from the client is trusted ONLY here; that is
+#          how Django learns the visitor used HTTPS on the trycloudflare URL.
+# Do not merge these blocks: trusting X-Forwarded-Proto on 8000 would let any
+# client claim HTTPS.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -18,7 +25,6 @@ data:
     server {
         listen 8000;
         server_name _;
-
 
         location = /healthz {
             add_header Content-Type text/plain;
@@ -47,5 +53,44 @@ data:
             proxy_set_header X-Real-IP $remote_addr;
             proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
             proxy_set_header X-Forwarded-Proto $scheme;
+        }
+    }
+
+    # Tunnel entry: reached only by the cloudflared pod (see
+    # network-policies/gateway.yaml). Cloudflare sets X-Forwarded-Proto to the
+    # visitor's scheme and overwrites any client-supplied value, so passing it
+    # through here is what lets Django serve the HTTPS URL correctly. A direct
+    # caller without the header is treated as plain http.
+    server {
+        listen 8001;
+        server_name _;
+
+        location = /healthz {
+            add_header Content-Type text/plain;
+            return 200 'ok';
+        }
+
+        location /api/booking/ {
+            proxy_pass http://booking-api:8001;
+            proxy_set_header Host $http_host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
+        }
+
+        location /api/identity/ {
+            proxy_pass http://identity-api:8002;
+            proxy_set_header Host $http_host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
+        }
+
+        location / {
+            proxy_pass http://web:8000;
+            proxy_set_header Host $http_host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $http_x_forwarded_proto;
         }
     }
