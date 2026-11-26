@@ -1,0 +1,13 @@
+# ClusterIP only: no public address. Open it with kubectl port-forward (README).
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana
+  namespace: monitoring
+  labels: {app: grafana}
+spec:
+  selector: {app: grafana}
+  ports:
+    - name: http
+      port: 3000
+      targetPort: 3000
