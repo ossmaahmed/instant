@@ -1,0 +1,39 @@
+# prometheus: only Grafana may query it. It may call:
+#   - the three Django services, on port 9102 only (metrics port)
+#   - kube-state-metrics 8080, node-exporter 9100, postgres-exporter 9187
+#   - the kubelets (10250) and the Kubernetes API (443). Both live at VPC
+#     addresses, so they are allowed by address block: the VPC CIDR from
+#     terraform (10.0.0.0/16) and the default EKS service CIDR (172.20.0.0/16,
+#     for the in-cluster "kubernetes" service address). Confirm the service
+#     CIDR with: kubectl get svc kubernetes -n default
+# NetworkPolicy works on addresses and ports, not on URL paths.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: prometheus
+  namespace: monitoring
+spec:
+  podSelector: {matchLabels: {app: prometheus}}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from: [{podSelector: {matchLabels: {app: grafana}}}]
+      ports: [{protocol: TCP, port: 9090}]
+  egress:
+    - to:
+        - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: barbershop}}
+          podSelector:
+            matchExpressions:
+              - {key: app, operator: In, values: [web, booking-api, identity-api]}
+      ports: [{protocol: TCP, port: 9102}]
+    - to: [{podSelector: {matchLabels: {app: kube-state-metrics}}}]
+      ports: [{protocol: TCP, port: 8080}]
+    - to: [{podSelector: {matchLabels: {app: node-exporter}}}]
+      ports: [{protocol: TCP, port: 9100}]
+    - to: [{podSelector: {matchLabels: {app: postgres-exporter}}}]
+      ports: [{protocol: TCP, port: 9187}]
+    - to:
+        - ipBlock: {cidr: 10.0.0.0/16}
+        - ipBlock: {cidr: 172.20.0.0/16}
+      ports:
+        - {protocol: TCP, port: 10250}
+        - {protocol: TCP, port: 443}
