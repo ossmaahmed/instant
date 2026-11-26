@@ -1,0 +1,32 @@
+# Prometheus may only READ: it lists pods and nodes to find what to scrape, and
+# it reads kubelet metrics (nodes/metrics). It cannot change anything and has no
+# nodes/proxy, no secrets, no exec.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: prometheus
+  namespace: monitoring
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: prometheus-read
+rules:
+  - apiGroups: [""]
+    resources: [nodes, nodes/metrics, pods]
+    verbs: [get, list, watch]
+  - nonResourceURLs: [/metrics]
+    verbs: [get]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: prometheus-read
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: prometheus-read
+subjects:
+  - kind: ServiceAccount
+    name: prometheus
+    namespace: monitoring
