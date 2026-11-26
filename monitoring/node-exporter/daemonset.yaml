@@ -1,0 +1,62 @@
+# One pod per node: reads the node's CPU, memory and disk. It needs READ-ONLY
+# access to three host folders (/proc, /sys, /) to see the node and not just
+# its own container. It runs as a non-root user, cannot write to the node, and
+# is not on the host network, so it keeps a normal pod IP and the NetworkPolicy
+# applies to it. Because of that, node NETWORK traffic is not measured here
+# (it would show the pod's own network, which is misleading), so those
+# collectors are switched off.
+apiVersion: apps/v1
+kind: DaemonSet
+metadata:
+  name: node-exporter
+  namespace: monitoring
+  labels: {app: node-exporter}
+spec:
+  selector:
+    matchLabels: {app: node-exporter}
+  template:
+    metadata:
+      labels: {app: node-exporter}
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+      tolerations:
+        - operator: Exists
+      containers:
+        - name: node-exporter
+          image: quay.io/prometheus/node-exporter:v1.9.1
+          args:
+            - --web.listen-address=:9100
+            - --path.procfs=/host/proc
+            - --path.sysfs=/host/sys
+            - --path.rootfs=/host/root
+            - --collector.filesystem.mount-points-exclude=^/(dev|proc|sys|run|var/lib/kubelet/.+|var/lib/containerd/.+)($|/)
+            - --no-collector.netdev
+            - --no-collector.netstat
+            - --no-collector.sockstat
+            - --no-collector.arp
+          ports:
+            - {name: metrics, containerPort: 9100}
+          readinessProbe:
+            httpGet: {path: /, port: 9100}
+            periodSeconds: 10
+          resources:
+            requests: {cpu: 10m, memory: 32Mi}
+            limits: {memory: 64Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          volumeMounts:
+            - {name: proc, mountPath: /host/proc, readOnly: true}
+            - {name: sys, mountPath: /host/sys, readOnly: true}
+            - {name: root, mountPath: /host/root, readOnly: true, mountPropagation: HostToContainer}
+      volumes:
+        - name: proc
+          hostPath: {path: /proc}
+        - name: sys
+          hostPath: {path: /sys}
+        - name: root
+          hostPath: {path: /}
