@@ -31,6 +31,12 @@ spec:
           args:
             - tunnel
             - --no-autoupdate
+            # UDP/QUIC to Cloudflare's edge timed out from this cluster
+            # (observed 2026-11-26), so pin the TCP http2 transport on 7844.
+            # Verified with this exact image version: connection registers
+            # (protocol=http2) and the public URL serves the site.
+            - --protocol
+            - http2
             - --url
             # 8001 is the gateway's tunnel-only listener: nginx trusts
             # X-Forwarded-Proto only on that port, and the gateway
