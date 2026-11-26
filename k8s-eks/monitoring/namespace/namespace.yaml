@@ -1,5 +1,0 @@
-# Everything that watches the barbershop lives here, apart from the app.
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: monitoring
