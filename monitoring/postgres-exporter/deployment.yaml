@@ -1,0 +1,54 @@
+# Reads PostgreSQL statistics and three aggregate booking views through the
+# read-only "monitoring" role (see monitoring-role.sql). It never sees customer
+# names or phone numbers. The password comes from the Secret
+# postgres-exporter-secret, which you create yourself (see ../README.md).
+# Do not apply this folder before that role and Secret exist: the exporter
+# would just report pg_up 0 and the alert would fire.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-exporter
+  namespace: monitoring
+  labels: {app: postgres-exporter}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app: postgres-exporter}
+  template:
+    metadata:
+      labels: {app: postgres-exporter}
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+      containers:
+        - name: postgres-exporter
+          image: quay.io/prometheuscommunity/postgres-exporter:v0.17.1
+          args:
+            - --web.listen-address=:9187
+            - --extend.query-path=/etc/postgres-exporter/queries.yaml
+          env:
+            - name: DATA_SOURCE_URI
+              value: db.barbershop.svc.cluster.local:5432/booking?sslmode=disable
+            - name: DATA_SOURCE_USER
+              value: monitoring
+            - name: DATA_SOURCE_PASS
+              valueFrom: {secretKeyRef: {name: postgres-exporter-secret, key: password}}
+          ports:
+            - {name: metrics, containerPort: 9187}
+          readinessProbe:
+            httpGet: {path: /, port: 9187}
+            periodSeconds: 10
+          resources:
+            requests: {cpu: 10m, memory: 32Mi}
+            limits: {memory: 64Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          volumeMounts:
+            - {name: queries, mountPath: /etc/postgres-exporter, readOnly: true}
+      volumes:
+        - name: queries
+          configMap: {name: postgres-exporter-queries}
