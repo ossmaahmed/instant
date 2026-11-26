@@ -24,7 +24,7 @@ spec:
         runAsGroup: 1000
       containers:
         - name: booking-api
-          image: 908124814208.dkr.ecr.us-east-1.amazonaws.com/instant-app:booking-api-8-b83da87
+          image: 908124814208.dkr.ecr.us-east-1.amazonaws.com/instant-app:booking-api-9-3c36920
           ports:
             - containerPort: 8001
           envFrom:
