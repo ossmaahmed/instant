@@ -2,6 +2,8 @@
 
 Plain YAML, applied with `kubectl apply -f`. One folder per component. Nothing has been applied to any cluster by this package. It has not been run on a cluster yet.
 
+Monitoring (Prometheus, Grafana, alert rules) is in `../monitoring/`, see `../monitoring/README.md`. The app services expose metrics only on port 9102.
+
 ## Folders
 ```
 k8s-eks/
