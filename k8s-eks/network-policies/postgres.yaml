@@ -12,3 +12,7 @@ spec:
         - podSelector: {matchLabels: {app: booking-api}}
         - podSelector: {matchLabels: {app: identity-api}}
       ports: [{protocol: TCP, port: 5432}]
+    - from:
+        - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: monitoring}}
+          podSelector: {matchLabels: {app: postgres-exporter}}
+      ports: [{protocol: TCP, port: 5432}]   # read-only monitoring role only
