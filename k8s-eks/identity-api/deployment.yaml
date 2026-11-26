@@ -27,7 +27,7 @@ spec:
         runAsGroup: 1000
       containers:
         - name: identity-api
-          image: osamaahmed123456/barbershop-identity-api:latest
+          image: 908124814208.dkr.ecr.us-east-1.amazonaws.com/instant-app:identity-api-6-e24c29b
           ports:
             - containerPort: 8002
           envFrom:

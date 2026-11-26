@@ -24,7 +24,7 @@ spec:
         runAsGroup: 1000
       containers:
         - name: booking-api
-          image: osamaahmed123456/barbershop-booking-api:latest
+          image: 908124814208.dkr.ecr.us-east-1.amazonaws.com/instant-app:booking-api-6-e24c29b
           ports:
             - containerPort: 8001
           envFrom:

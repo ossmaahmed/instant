@@ -20,7 +20,7 @@ spec:
         # a fresh apply never produces a crash-restart loop. Uses the gateway
         # image itself (alpine, has getent), so no extra image is needed.
         - name: wait-for-services
-          image: osamaahmed123456/barbershop-gateway:latest
+          image: 908124814208.dkr.ecr.us-east-1.amazonaws.com/instant-app:gateway-6-e24c29b
           command:
             - sh
             - -c
@@ -33,7 +33,7 @@ spec:
             limits: {memory: 32Mi}
       containers:
         - name: gateway
-          image: osamaahmed123456/barbershop-gateway:latest
+          image: 908124814208.dkr.ecr.us-east-1.amazonaws.com/instant-app:gateway-6-e24c29b
           ports:
             - containerPort: 8000
           readinessProbe:
