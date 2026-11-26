@@ -1,0 +1,10 @@
+# Step 1 in the monitoring namespace: nothing may talk to anything (in or out)
+# unless a policy below allows it. Same default as the barbershop namespace.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-all
+  namespace: monitoring
+spec:
+  podSelector: {}
+  policyTypes: [Ingress, Egress]
