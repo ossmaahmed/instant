@@ -1,0 +1,44 @@
+# Cloudflare Quick Tunnel: free temporary HTTPS URL, no Cloudflare account.
+# The pod dials OUT to Cloudflare; nothing listens publicly.
+# Docs: https://developers.cloudflare.com/tunnel/get-started/quick-tunnels/
+#
+# IMPORTANT: every restart of this pod creates a NEW trycloudflare URL.
+# After any restart, follow k8s-eks/cloudflared/README.md section "URL changed"
+# to put the new hostname into web-config and restart web, or the site stays
+# unreachable at the old URL.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: cloudflared
+  namespace: barbershop
+  labels: {app: cloudflared}
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app: cloudflared}
+  template:
+    metadata:
+      labels: {app: cloudflared}
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+      containers:
+        - name: cloudflared
+          image: cloudflare/cloudflared:2026.10.7
+          args:
+            - tunnel
+            - --no-autoupdate
+            - --url
+            # 8001 is the gateway's tunnel-only listener: nginx trusts
+            # X-Forwarded-Proto only on that port, and the gateway
+            # NetworkPolicy allows it only from these pods.
+            - http://gateway.barbershop.svc.cluster.local:8001
+          resources:
+            requests: {cpu: 10m, memory: 64Mi}
+            limits: {memory: 128Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
