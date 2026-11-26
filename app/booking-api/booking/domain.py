@@ -109,6 +109,17 @@ def reserve(*,service,start,name,phone,booking=None,owner=False):
                 service=type(service).objects.get(pk=service.pk)
                 if not service.active: raise RuleError('الخدمة دي مش متاحة للحجز الجديد.')
                 duration=service.duration
+            # One booking per person per appointment day: same normalized
+            # phone OR same normalized name (whitespace collapsed, casefolded).
+            # Cancelled bookings free the day; an edited booking excludes
+            # itself. Runs under the day's row lock taken above, so parallel
+            # requests for the same day serialize before reaching this check.
+            duplicate=RuleError('فيه حجز مسجل في اليوم ده بنفس الاسم أو رقم الموبايل. اليوم الواحد فيه حجز واحد بس.')
+            others=Booking.objects.filter(start__date=day).exclude(status='cancelled')
+            if booking: others=others.exclude(pk=booking.pk)
+            if others.filter(phone=phone).exists(): raise duplicate
+            folded=' '.join(name.split()).casefold()
+            if any(' '.join(n.split()).casefold()==folded for n in others.values_list('name',flat=True)): raise duplicate
             end=validate_slot(s,start,duration)
             if booking: Occupancy.objects.filter(booking=booking).delete()
             else: booking=Booking(service=service,service_name=service.name,price=service.price,duration=duration,source='owner' if owner else 'customer')
