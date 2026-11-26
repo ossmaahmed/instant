@@ -1,6 +1,9 @@
 # cloudflared: may call the gateway's tunnel port and may dial out to
-# Cloudflare's edge on 7844 (TCP fallback + UDP QUIC). Pod DNS is already
-# covered by allow-dns-egress. No ingress: nothing calls this pod.
+# Cloudflare on 443 (one HTTPS provisioning call to api.trycloudflare.com,
+# verified empirically: without it the pod never receives a tunnel URL) and
+# on 7844 (the long-lived tunnel connection: UDP QUIC, TCP http2 fallback).
+# Pod DNS is already covered by allow-dns-egress.
+# No ingress: nothing calls this pod.
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
 metadata:
@@ -14,5 +17,6 @@ spec:
       ports: [{protocol: TCP, port: 8001}]
     - to: [{ipBlock: {cidr: 0.0.0.0/0}}]
       ports:
+        - {protocol: TCP, port: 443}
         - {protocol: TCP, port: 7844}
         - {protocol: UDP, port: 7844}
