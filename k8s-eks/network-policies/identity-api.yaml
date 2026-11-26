@@ -13,6 +13,10 @@ spec:
         - podSelector: {matchLabels: {app: web}}
         - podSelector: {matchLabels: {app: booking-api}}
       ports: [{protocol: TCP, port: 8002}]
+    - from:
+        - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: monitoring}}
+          podSelector: {matchLabels: {app: prometheus}}
+      ports: [{protocol: TCP, port: 9102}]   # metrics port, Prometheus only
   egress:
     - to: [{podSelector: {matchLabels: {app: postgres}}}]
       ports: [{protocol: TCP, port: 5432}]
