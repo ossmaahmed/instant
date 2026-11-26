@@ -1,0 +1,19 @@
+# postgres-exporter: only Prometheus may read it. It may connect to PostgreSQL
+# (barbershop namespace, app=postgres) on 5432 only. The matching allow on the
+# postgres side is in ../../network-policies/postgres.yaml.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: postgres-exporter
+  namespace: monitoring
+spec:
+  podSelector: {matchLabels: {app: postgres-exporter}}
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from: [{podSelector: {matchLabels: {app: prometheus}}}]
+      ports: [{protocol: TCP, port: 9187}]
+  egress:
+    - to:
+        - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: barbershop}}
+          podSelector: {matchLabels: {app: postgres}}
+      ports: [{protocol: TCP, port: 5432}]
