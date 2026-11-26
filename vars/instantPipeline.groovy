@@ -16,6 +16,7 @@ def call(Map config = [:]) {
         serviceDir      : '',          // folder that holds the service folders ('' = repo root)
         manifestDir     : 'k8s',
         severity        : 'HIGH,CRITICAL',
+        scanMinFreeMb   : 2048,        // Scan Image refuses to start with less free disk than this (MiB)
         ignoreUnfixed   : false,
         agentLabel      : ''
     ] + config
@@ -47,7 +48,8 @@ def call(Map config = [:]) {
                 runPerService(changed) { String svc -> buildImage(cfg, svc, images[svc], sha) }
             }
             stage('Scan Image') {
-                runPerService(changed) { String svc -> scanImage(cfg, svc, images[svc]) }
+                // One scan at a time: parallel Trivy runs share one DB download and one cache.
+                runSequentially(changed) { String svc -> scanImage(cfg, svc, images[svc]) }
             }
             stage('Push Image') {
                 ecrLogin(cfg)
@@ -82,4 +84,24 @@ private void runPerService(List services, Closure body) {
     }
     branches.failFast = false
     parallel branches
+}
+
+// Runs body(service) one after another. Every service is tried, then the stage
+// fails if any of them failed. A user abort or a timeout stops immediately.
+private void runSequentially(List services, Closure body) {
+    List failed = []
+    for (String s : services) {
+        String svc = s
+        try {
+            body(svc)
+        } catch (org.jenkinsci.plugins.workflow.steps.FlowInterruptedException e) {
+            throw e
+        } catch (Exception e) {
+            echo "${svc} failed: ${e.message}"
+            failed << svc
+        }
+    }
+    if (!failed.isEmpty()) {
+        error("Failed for: ${failed.join(', ')}")
+    }
 }
