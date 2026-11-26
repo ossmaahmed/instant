@@ -27,7 +27,7 @@ spec:
         runAsGroup: 1000
       containers:
         - name: identity-api
-          image: 908124814208.dkr.ecr.us-east-1.amazonaws.com/instant-app:identity-api-7-c2e4e81
+          image: 908124814208.dkr.ecr.us-east-1.amazonaws.com/instant-app:identity-api-8-b83da87
           ports:
             - containerPort: 8002
           envFrom:

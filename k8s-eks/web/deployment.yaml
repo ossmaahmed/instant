@@ -30,7 +30,7 @@ spec:
         fsGroup: 1000   # makes the /data volume writable by the app user
       containers:
         - name: web
-          image: 908124814208.dkr.ecr.us-east-1.amazonaws.com/instant-app:web-7-c2e4e81
+          image: 908124814208.dkr.ecr.us-east-1.amazonaws.com/instant-app:web-8-b83da87
           ports:
             - containerPort: 8000
           envFrom:
