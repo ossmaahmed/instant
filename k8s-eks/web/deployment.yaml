@@ -33,6 +33,7 @@ spec:
           image: 908124814208.dkr.ecr.us-east-1.amazonaws.com/instant-app:web-9-3c36920
           ports:
             - containerPort: 8000
+            - {name: metrics, containerPort: 9102}   # Prometheus only, see network-policies/
           envFrom:
             - configMapRef: {name: web-config}
           env:
