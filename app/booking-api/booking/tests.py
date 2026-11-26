@@ -43,7 +43,8 @@ class BookingTests(TestCase):
 
     def test_adjacent_allowed(self):
         self.make()
-        self.make(start=self.start + timedelta(minutes=30))
+        # Different person: one booking per person per day.
+        self.make(name='زبون تاني', phone='01200000000', start=self.start + timedelta(minutes=30))
         self.assertEqual(Booking.objects.count(), 2)
 
     def test_window_fixed_two_days(self):
@@ -76,7 +77,8 @@ class BookingTests(TestCase):
 
     def test_atomic_failed_move_preserves_old_reservation(self):
         b = self.make()
-        self.make(start=self.start + timedelta(hours=1))
+        # Different person: one booking per person per day.
+        self.make(name='زبون تاني', phone='01200000000', start=self.start + timedelta(hours=1))
         with self.assertRaises(RuleError):
             self.make(booking=b, start=self.start + timedelta(hours=1))
         b.refresh_from_db()
@@ -147,6 +149,74 @@ class BookingTests(TestCase):
         with self.assertRaises(RuleError):
             self.make()
 
+    def test_second_booking_same_phone_same_day_rejected(self):
+        self.make()
+        with self.assertRaises(RuleError):
+            self.make(name='اسم مختلف تمامًا', start=self.start + timedelta(hours=1))
+        self.assertEqual(Booking.objects.count(), 1)
+
+    def test_second_booking_same_name_same_day_rejected(self):
+        self.make()
+        with self.assertRaises(RuleError):
+            self.make(phone='01200000000', start=self.start + timedelta(hours=1))
+        self.assertEqual(Booking.objects.count(), 1)
+
+    def test_same_person_other_day_allowed(self):
+        day2 = timezone.localdate() + timedelta(days=2)
+        Schedule.objects.create(day=day2, opens=time(10), closes=time(22))
+        self.make()
+        self.make(start=local_dt(day2, time(12)))
+        self.assertEqual(Booking.objects.count(), 2)
+
+    def test_duplicate_match_normalizes_name_and_phone(self):
+        self.make()
+        with self.assertRaises(RuleError):  # extra inner spaces are not a new name
+            self.make(name='زبون   تجريبي', phone='01200000000', start=self.start + timedelta(hours=1))
+        with self.assertRaises(RuleError):  # Arabic-Indic digits fold to the same phone
+            self.make(name='شخص تاني', phone='٠١٠٠٠٠٠٠٠٠٠', start=self.start + timedelta(hours=1))
+        self.assertEqual(Booking.objects.count(), 1)
+
+    def test_cancelled_booking_frees_the_day(self):
+        b = self.make()
+        set_status(b, 'cancelled')
+        self.make(start=self.start + timedelta(hours=1))
+        self.assertEqual(Booking.objects.count(), 2)
+
+    def test_no_show_and_completed_still_count(self):
+        b = self.make()
+        Booking.objects.filter(pk=b.pk).update(status='no_show')
+        with self.assertRaises(RuleError):
+            self.make(start=self.start + timedelta(hours=1))
+        Booking.objects.filter(pk=b.pk).update(status='completed')
+        with self.assertRaises(RuleError):
+            self.make(start=self.start + timedelta(hours=1))
+        self.assertEqual(Booking.objects.count(), 1)
+
+    def test_owner_manual_booking_also_blocked(self):
+        self.make()
+        with self.assertRaises(RuleError):
+            self.make(start=self.start + timedelta(hours=1), owner=True)
+        self.assertEqual(Booking.objects.count(), 1)
+
+    def test_edit_same_day_excludes_itself(self):
+        b = self.make()
+        reserve(service=self.s, start=self.start + timedelta(hours=1),
+                name='زبون تجريبي', phone='01000000000', booking=b)
+        b.refresh_from_db()
+        self.assertEqual(b.start, self.start + timedelta(hours=1))
+
+    def test_edit_onto_day_with_own_other_booking_rejected(self):
+        day2 = timezone.localdate() + timedelta(days=2)
+        Schedule.objects.create(day=day2, opens=time(10), closes=time(22))
+        b1 = self.make()
+        self.make(start=local_dt(day2, time(12)))
+        with self.assertRaises(RuleError):
+            reserve(service=self.s, start=local_dt(day2, time(14)),
+                    name='زبون تجريبي', phone='01000000000', booking=b1)
+        b1.refresh_from_db()
+        self.assertEqual(b1.start, self.start)  # failed move leaves the old reservation
+        self.assertEqual(b1.occupancy_set.count(), 30)
+
 
 class ApiTests(TestCase):
     """API-level behavior: public guest flow, lookup guard, and owner
@@ -177,6 +247,15 @@ class ApiTests(TestCase):
             'name': 'تاني', 'phone': '01000000000',
         }, format='json')
         self.assertEqual(r.status_code, 400)
+
+    def test_duplicate_person_same_day_rejected_over_api(self):
+        self.create_booking()
+        r = self.client.post('/api/booking/bookings/', {
+            'service': self.s.pk, 'start': (self.start + timedelta(hours=2)).isoformat(),
+            'name': 'عميل جديد', 'phone': '01100000000',
+        }, format='json')
+        self.assertEqual(r.status_code, 400)
+        self.assertIn('حجز واحد', r.json()['error'])
 
     def test_public_lists_hide_inactive_and_expose_hours(self):
         Service.objects.create(name='خدمة مقفولة', price=50, duration=30, active=False)
@@ -289,6 +368,28 @@ class ApiTests(TestCase):
 
 
 class ConcurrencyTests(TransactionTestCase):
+    def test_parallel_same_person_only_one_wins(self):
+        if connection.vendor != 'postgresql':
+            self.skipTest('PostgreSQL concurrency test runs in CI with a PostgreSQL service')
+        day = timezone.localdate() + timedelta(days=1)
+        Schedule.objects.create(day=day)
+        s = Service.objects.create(name='Hair', price=100, duration=60)
+        starts = [local_dt(day, time(12)), local_dt(day, time(14))]
+
+        def attempt(st):
+            try:
+                reserve(service=Service.objects.get(pk=s.pk), start=st, name='Test guest', phone='01000000000')
+                return True
+            except RuleError:
+                return False
+            finally:
+                connections.close_all()
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            results = list(pool.map(attempt, starts))
+        self.assertEqual(sorted(results), [False, True])
+        self.assertEqual(Booking.objects.count(), 1)
+
     def test_two_parallel_requests_only_one_wins(self):
         if connection.vendor != 'postgresql':
             self.skipTest('PostgreSQL concurrency test runs in CI with a PostgreSQL service')
