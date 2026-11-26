@@ -74,6 +74,17 @@ SESSION_SAVE_EVERY_REQUEST = True
 X_FRAME_OPTIONS = 'DENY'
 SECURE_CONTENT_TYPE_NOSNIFF = True
 
+# Public HTTPS entry (a Cloudflare Quick Tunnel in front of the gateway).
+# All four default to off, so local runs and kubectl port-forward keep today's
+# behavior; the web-config ConfigMap turns them on for the deployed pod.
+# The gateway forwards X-Forwarded-Proto only on its tunnel-only listener
+# (8001, cloudflared-only), which is what bounds the trust in that header.
+CSRF_TRUSTED_ORIGINS = [o for o in os.environ.get('CSRF_TRUSTED_ORIGINS', '').split(',') if o]
+if os.environ.get('TRUST_X_FORWARDED_PROTO', 'false') == 'true':
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+SESSION_COOKIE_SECURE = os.environ.get('SESSION_COOKIE_SECURE', 'false') == 'true'
+CSRF_COOKIE_SECURE = os.environ.get('CSRF_COOKIE_SECURE', 'false') == 'true'
+
 BOOKING_API_URL = os.environ.get('BOOKING_API_URL', 'http://localhost:8001').rstrip('/')
 IDENTITY_API_URL = os.environ.get('IDENTITY_API_URL', 'http://localhost:8002').rstrip('/')
 API_TIMEOUT = float(os.environ.get('API_TIMEOUT', '6'))
