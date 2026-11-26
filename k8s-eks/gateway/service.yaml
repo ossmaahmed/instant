@@ -1,5 +1,7 @@
 # ClusterIP on purpose: nothing is exposed to the internet by this file.
 # Test with: kubectl -n barbershop port-forward svc/gateway 8000:8000
+# Port 8001 is the tunnel-only entry used by the cloudflared pod.
+# Applied by hand with kubectl (Service files are outside Argo's include filter).
 apiVersion: v1
 kind: Service
 metadata:
@@ -12,3 +14,6 @@ spec:
     - name: http
       port: 8000
       targetPort: 8000
+    - name: tunnel
+      port: 8001
+      targetPort: 8001
