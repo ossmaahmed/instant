@@ -35,7 +35,8 @@ spec:
         - name: gateway
           image: 908124814208.dkr.ecr.us-east-1.amazonaws.com/instant-app:gateway-7-c2e4e81
           ports:
-            - containerPort: 8000
+            - containerPort: 8000  # local / future-ALB entry
+            - containerPort: 8001  # tunnel entry (cloudflared only, see configmap)
           readinessProbe:
             httpGet: {path: /healthz, port: 8000}
             initialDelaySeconds: 3
